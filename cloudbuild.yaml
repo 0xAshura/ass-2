@@ -4,6 +4,7 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'docker.io/0xashura/flask-app:latest']
 - name: 'gcr.io/google.com/cloudsdktool/gcloud'
-  args: ['compute', 'instances', 'update-container', 'flask-instance', '--zone', 'us-central1-a', '--container-image', 'docker.io/0xashura/flask-app:latest']
+  args: ['compute', 'instances', 'update-container', 'limbad-flask-instance', '--zone', 'us-central1-a', '--container-image', 'docker.io/0xashura/flask-app:latest']
 images:
 - 'docker.io/0xashura/flask-app:latest'
+logs_bucket: 'gs://limbad-build-logs-293112759372'
