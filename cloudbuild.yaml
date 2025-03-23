@@ -1,10 +1,42 @@
 steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'docker.io/0xashura/flask-app:latest', '.']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'docker.io/0xashura/flask-app:latest']
-- name: 'gcr.io/google.com/cloudsdktool/gcloud'
-  args: ['compute', 'instances', 'update-container', 'limbad-flask-instance', '--zone', 'us-central1-a', '--container-image', 'docker.io/0xashura/flask-app:latest']
+  # Authenticate Docker Hub
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Authenticate Docker Hub'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "$$DOCKER_HUB_CREDENTIALS" | base64 --decode > /workspace/docker-config.json
+        echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"$(cat /workspace/docker-config.json)\"}}}" > /workspace/config.json
+    secretEnv: ['DOCKER_HUB_CREDENTIALS']
+
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Docker Image'
+    args: ['build', '-t', 'docker.io/0xashura/flask-app:latest', '.']
+
+  # Push the Docker image to Docker Hub
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Docker Image'
+    args: ['push', 'docker.io/0xashura/flask-app:latest']
+    volumes:
+      - name: 'docker-config'
+        path: '/root/.docker'
+
+  # Update the Compute Engine instance with the new container image
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Update Compute Engine Instance'
+    args: ['compute', 'instances', 'update-container', 'limbad-flask-instance', '--zone', 'us-central1-a', '--container-image', 'docker.io/0xashura/flask-app:latest']
+
+# Specify the Docker image to be built
 images:
-- 'docker.io/0xashura/flask-app:latest'
+  - 'docker.io/0xashura/flask-app:latest'
+
+# Store build logs in a Google Cloud Storage bucket
 logs_bucket: 'gs://limbad-build-logs-293112759372'
+
+# Use secrets from Google Cloud Secret Manager
+availableSecrets:
+  secretManager:
+    - versionName: 'projects/293112759372/secrets/docker-hub-credentials/versions/latest'
+      env: 'DOCKER_HUB_CREDENTIALS'
